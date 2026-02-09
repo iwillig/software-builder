@@ -1,0 +1,28 @@
+# Software Builder - Test Configuration
+# Overrides for automated testing
+
+app:
+  environment: "test"
+  debug: true
+
+web:
+  host: "127.0.0.1"
+  port: 5001  # Different port for tests
+
+database:
+  url: "sqlite:///:memory:"  # In-memory database for tests
+  echo: false
+  pool_size: 1
+
+logging:
+  level: "WARNING"  # Reduce log noise during tests
+  format: "console"
+  structured: false  # Simple logging for tests
+
+agent:
+  max_iterations: 3  # Fast tests
+  timeout: 10
+
+eval:
+  trace_collection: false  # Disable during tests
+  dataset_dir: "tests/evals/datasets"

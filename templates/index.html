@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Home - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>🤖 Software Builder</h1>
+    <p>Local LLM coding agent with built-in evaluation system</p>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h3>💬 Sessions</h3>
+        <p>Manage coding conversations with your AI agent</p>
+        <a href="/sessions" role="button">View Sessions</a>
+    </div>
+    
+    <div class="card">
+        <h3>📊 Traces</h3>
+        <p>Review execution traces and agent interactions</p>
+        <a href="/traces" role="button" class="secondary">View Traces</a>
+    </div>
+    
+    <div class="card">
+        <h3>✅ Evaluations</h3>
+        <p>Annotate and evaluate agent performance</p>
+        <a href="/evals" role="button" class="contrast">View Evaluations</a>
+    </div>
+</div>
+
+<article>
+    <h2>Features</h2>
+    <ul>
+        <li><strong>Local-First</strong> - All data stored locally in SQLite</li>
+        <li><strong>Multi-Provider</strong> - OpenAI, Anthropic, and more</li>
+        <li><strong>Eval System</strong> - Built-in trace collection and annotation</li>
+        <li><strong>Prompt Versioning</strong> - Track and compare prompt versions</li>
+        <li><strong>Real-Time Updates</strong> - Server-Sent Events via Datastar</li>
+    </ul>
+</article>
+
+<article>
+    <h2>Getting Started</h2>
+    <ol>
+        <li>Configure your LLM provider API keys in <code>.env</code></li>
+        <li>Initialize the database with <code>just db-init</code></li>
+        <li>Create a new session and start coding!</li>
+    </ol>
+</article>
+{% endblock %}

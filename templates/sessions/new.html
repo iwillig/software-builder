@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}New Session - {{ app_name }}{% endblock %}
+
+{% block content %}
+<h1>Create New Session</h1>
+
+<form method="POST" action="{{ url_for('sessions.create_session') }}">
+    <article>
+        <label for="title">
+            Session Title
+            <input type="text" 
+                   id="title" 
+                   name="title" 
+                   placeholder="e.g., Build REST API, Refactor authentication, etc." 
+                   required
+                   autofocus>
+        </label>
+        <small>Give your coding session a descriptive title</small>
+    </article>
+
+    <article>
+        <label for="system_prompt_id">
+            System Prompt Version
+            <select id="system_prompt_id" name="system_prompt_id" required>
+                <option value="">-- Select System Prompt --</option>
+                {% for prompt in system_prompts %}
+                <option value="{{ prompt.id }}" 
+                        {% if prompt.is_active %}selected{% endif %}>
+                    {{ prompt.version }} - {{ prompt.name }}
+                    {% if prompt.is_active %}(Active){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <small>Choose the system prompt version for this session. The active tool prompt will be used automatically.</small>
+    </article>
+
+    <div style="display: flex; gap: 1rem;">
+        <button type="submit">Create Session</button>
+        <a href="{{ url_for('sessions.list_sessions') }}" role="button" class="secondary">Cancel</a>
+    </div>
+</form>
+
+{% if not system_prompts %}
+<article style="background-color: var(--pico-card-background-color); margin-top: 2rem;">
+    <h3>⚠️ No System Prompts Available</h3>
+    <p>
+        You need to create at least one system prompt before creating a session.
+        <a href="{{ url_for('system_prompts.new_prompt') }}">Create a system prompt</a> or run <code>software-builder seed</code> to create default prompts.
+    </p>
+</article>
+{% endif %}
+{% endblock %}

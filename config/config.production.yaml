@@ -1,0 +1,31 @@
+# Software Builder - Production Configuration
+# Overrides for production environment
+
+app:
+  environment: "production"
+  debug: false
+
+web:
+  host: "0.0.0.0"  # Bind to all interfaces in production
+  port: 5000
+  workers: 4
+
+database:
+  url: "sqlite:///data/software_builder.db"
+  echo: false
+  pool_size: 10
+  pool_timeout: 60
+
+logging:
+  level: "INFO"
+  format: "json"  # JSON for production log aggregation
+  structured: true
+  file: "logs/software_builder.log"
+
+agent:
+  max_iterations: 10
+  timeout: 300
+
+eval:
+  trace_collection: true
+  auto_review_threshold: 0.8  # Higher threshold for production

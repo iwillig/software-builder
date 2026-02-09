@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}System Prompts - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1>System Prompts</h1>
+    <a href="{{ url_for('system_prompts.new_prompt') }}" role="button">+ New System Prompt</a>
+</div>
+
+<p style="color: var(--pico-muted-color); margin-bottom: 2rem;">
+    System prompts define the agent's behavior and personality. 
+    Only one prompt can be active at a time - new sessions will use the active prompt.
+</p>
+
+{% if prompts %}
+<table>
+    <thead>
+        <tr>
+            <th>Version</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Sessions</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for prompt in prompts %}
+        <tr>
+            <td>
+                <a href="{{ url_for('system_prompts.view_prompt', prompt_id=prompt.id) }}">
+                    <strong>{{ prompt.version }}</strong>
+                </a>
+            </td>
+            <td>{{ prompt.name }}</td>
+            <td>
+                {% if prompt.is_active %}
+                    <span class="badge badge-success">Active</span>
+                {% else %}
+                    <span class="badge badge-secondary">Inactive</span>
+                {% endif %}
+            </td>
+            <td>
+                <small>{{ prompt.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </td>
+            <td>
+                <small>{{ session_counts[prompt.id] }} sessions</small>
+            </td>
+            <td>
+                <a href="{{ url_for('system_prompts.view_prompt', prompt_id=prompt.id) }}" 
+                   role="button" 
+                   class="secondary"
+                   style="margin: 0; padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+                    View
+                </a>
+                {% if not prompt.is_active %}
+                <form method="POST" 
+                      action="{{ url_for('system_prompts.activate_prompt', prompt_id=prompt.id) }}"
+                      style="display: inline;">
+                    <button type="submit" 
+                            class="contrast"
+                            style="margin: 0; padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+                        Activate
+                    </button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<article>
+    <p>No system prompts yet. <a href="{{ url_for('system_prompts.new_prompt') }}">Create your first system prompt</a> to get started!</p>
+</article>
+{% endif %}
+
+<style>
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        text-transform: uppercase;
+    }
+    
+    .badge-success {
+        background-color: var(--pico-ins-color);
+        color: var(--pico-contrast);
+    }
+    
+    .badge-secondary {
+        background-color: var(--pico-muted-color);
+        color: var(--pico-contrast);
+    }
+</style>
+{% endblock %}

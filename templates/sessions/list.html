@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Sessions - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1>Coding Sessions</h1>
+    <a href="{{ url_for('sessions.new_session') }}" role="button">+ New Session</a>
+</div>
+
+{% if sessions %}
+<table>
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Status</th>
+            <th>System Prompt</th>
+            <th>Tool Prompt</th>
+            <th>Created</th>
+            <th>Updated</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for session in sessions %}
+        <tr>
+            <td>
+                <a href="{{ url_for('sessions.view_session', session_id=session.id) }}">
+                    <strong>{{ session.title }}</strong>
+                </a>
+            </td>
+            <td>
+                <span class="badge">{{ session.status }}</span>
+            </td>
+            <td>
+                <small>{{ session.system_prompt.version }}</small>
+            </td>
+            <td>
+                <small>{{ session.tool_prompt.version }}</small>
+            </td>
+            <td>
+                <small>{{ session.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </td>
+            <td>
+                <small>{{ session.updated_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </td>
+            <td>
+                <a href="{{ url_for('sessions.view_session', session_id=session.id) }}" 
+                   role="button" 
+                   class="secondary"
+                   style="margin: 0; padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+                    View
+                </a>
+                <form method="POST" 
+                      action="{{ url_for('sessions.delete_session', session_id=session.id) }}"
+                      style="display: inline;"
+                      onsubmit="return confirm('Delete session \'{{ session.title }}\'?');">
+                    <button type="submit" 
+                            class="secondary"
+                            style="margin: 0; padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+                        Delete
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<article>
+    <p>No sessions yet. <a href="{{ url_for('sessions.new_session') }}">Create your first session</a> to get started!</p>
+</article>
+{% endif %}
+
+<style>
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        background-color: var(--pico-primary-background);
+        color: var(--pico-primary-inverse);
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}

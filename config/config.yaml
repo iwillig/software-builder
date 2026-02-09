@@ -1,0 +1,59 @@
+# Software Builder - Base Configuration
+# This file contains default settings shared across all environments.
+# Environment-specific overrides go in config.{environment}.yaml
+
+app:
+  name: "Software Builder"
+  version: "0.1.0"
+  environment: "development"
+  debug: false
+
+web:
+  host: "127.0.0.1"
+  port: 5000
+  workers: 1
+
+database:
+  url: "sqlite:///data/software_builder.db"
+  echo: false
+  pool_size: 5
+  pool_timeout: 30
+
+llm:
+  default_provider: "openai"
+  
+  openai:
+    model: "gpt-4o-mini"
+    temperature: 0.7
+    max_tokens: 2048
+    timeout: 60
+    # api_key: Set via SB_LLM__OPENAI__API_KEY environment variable
+  
+  anthropic:
+    model: "claude-3-5-sonnet-20241022"
+    temperature: 0.7
+    max_tokens: 4096
+    timeout: 60
+    # api_key: Set via SB_LLM__ANTHROPIC__API_KEY environment variable
+
+logging:
+  level: "INFO"
+  format: "console"
+  structured: true
+  file: null  # Set to path for file logging
+
+agent:
+  max_iterations: 10
+  timeout: 300
+  tools:
+    - "file_operations"
+    - "code_execution"
+
+eval:
+  trace_collection: true
+  auto_review_threshold: 0.7
+  dataset_dir: "tests/evals/datasets"
+
+prompts:
+  registry_path: "prompts/prompt_registry.yaml"
+  default_version: "current"

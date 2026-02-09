@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}New System Prompt - {{ app_name }}{% endblock %}
+
+{% block content %}
+<h1>Create New System Prompt</h1>
+
+<p style="color: var(--pico-muted-color); margin-bottom: 2rem;">
+    System prompts define how the AI agent behaves. Create different versions to experiment with different personalities or capabilities.
+</p>
+
+<form method="POST" action="{{ url_for('system_prompts.create_prompt') }}">
+    <article>
+        <label for="version">
+            Version
+            <input type="text" 
+                   id="version" 
+                   name="version" 
+                   placeholder="e.g., v2, v1.1, experimental, etc." 
+                   required
+                   autofocus>
+        </label>
+        <small>Unique identifier for this prompt version (must be unique)</small>
+    </article>
+
+    <article>
+        <label for="name">
+            Name
+            <input type="text" 
+                   id="name" 
+                   name="name" 
+                   placeholder="e.g., Concise Coding Assistant, Detailed Explainer, etc." 
+                   required>
+        </label>
+        <small>Descriptive name for this prompt</small>
+    </article>
+
+    <article>
+        <label for="content">
+            Prompt Content
+            <textarea id="content" 
+                      name="content" 
+                      rows="15" 
+                      placeholder="You are a helpful coding assistant. Your role is to...
+                      
+- Help users write clean, maintainable code
+- Explain technical concepts clearly
+- Suggest best practices
+- Be concise and practical"
+                      required></textarea>
+        </label>
+        <small>The actual system prompt text that defines the agent's behavior</small>
+    </article>
+
+    <article>
+        <label>
+            <input type="checkbox" 
+                   id="is_active" 
+                   name="is_active">
+            Set as active prompt
+        </label>
+        <small>If checked, this will become the default prompt for new sessions (deactivates other prompts)</small>
+    </article>
+
+    <div style="display: flex; gap: 1rem;">
+        <button type="submit">Create System Prompt</button>
+        <a href="{{ url_for('system_prompts.list_prompts') }}" role="button" class="secondary">Cancel</a>
+    </div>
+</form>
+
+<article style="background-color: var(--pico-card-background-color); margin-top: 2rem;">
+    <h3>💡 Tips for Good System Prompts</h3>
+    <ul>
+        <li><strong>Be specific</strong> - Clearly define the agent's role and capabilities</li>
+        <li><strong>Set expectations</strong> - Describe how the agent should respond</li>
+        <li><strong>Include guidelines</strong> - Add dos and don'ts for behavior</li>
+        <li><strong>Consider tone</strong> - Formal, casual, concise, detailed, etc.</li>
+        <li><strong>Test iteratively</strong> - Create versions and compare performance</li>
+    </ul>
+</article>
+{% endblock %}

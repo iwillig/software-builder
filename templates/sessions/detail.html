@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}{{ session.title }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1>{{ session.title }}</h1>
+        <p style="margin: 0; color: var(--pico-muted-color);">
+            <span class="badge">{{ session.status }}</span>
+            Created {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('sessions.list_sessions') }}" role="button" class="secondary">← Back to Sessions</a>
+    </div>
+</div>
+
+<!-- Session Information -->
+<article>
+    <h3>Session Information</h3>
+    <div class="grid">
+        <div>
+            <strong>System Prompt:</strong>
+            <p>{{ session.system_prompt.version }} - {{ session.system_prompt.name }}</p>
+        </div>
+        <div>
+            <strong>Tool Prompt:</strong>
+            <p>{{ session.tool_prompt.version }} - {{ session.tool_prompt.name }}</p>
+        </div>
+    </div>
+    <div class="grid">
+        <div>
+            <strong>Status:</strong>
+            <p>{{ session.status }}</p>
+        </div>
+        <div>
+            <strong>Last Updated:</strong>
+            <p>{{ session.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        </div>
+    </div>
+</article>
+
+<!-- Messages -->
+<article>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">Messages ({{ messages|length }})</h3>
+        <button disabled>+ Add Message (Coming Soon)</button>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="message-card" data-role="{{ message.role }}">
+            <div class="message-header">
+                <strong>{{ message.role|title }}</strong>
+                {% if message.name %}
+                    <span class="badge">{{ message.name }}</span>
+                {% endif %}
+                <small style="color: var(--pico-muted-color); margin-left: auto;">
+                    Sequence: {{ message.sequence }} | 
+                    {{ message.created_at.strftime('%H:%M:%S') }}
+                </small>
+            </div>
+            
+            {% if message.content %}
+            <div class="message-content">
+                <pre style="white-space: pre-wrap; margin: 0;">{{ message.content }}</pre>
+            </div>
+            {% endif %}
+
+            {% if message.tool_calls %}
+            <div class="message-tool-calls">
+                <strong>Tool Calls:</strong>
+                <pre style="white-space: pre-wrap; margin: 0.5rem 0 0 0; font-size: 0.875rem;">{{ message.tool_calls|tojson(indent=2) }}</pre>
+            </div>
+            {% endif %}
+
+            {% if message.tool_call_id %}
+            <div class="message-tool-response">
+                <strong>Tool Call ID:</strong> {{ message.tool_call_id }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p style="text-align: center; color: var(--pico-muted-color); padding: 2rem;">
+            No messages yet. Start a conversation to see messages here.
+        </p>
+    {% endif %}
+</article>
+
+<!-- Actions -->
+<div style="display: flex; gap: 1rem; margin-top: 2rem;">
+    <button disabled>Continue Conversation (Coming Soon)</button>
+    <form method="POST" 
+          action="{{ url_for('sessions.delete_session', session_id=session.id) }}"
+          style="display: inline;"
+          onsubmit="return confirm('Delete this session? This cannot be undone.');">
+        <button type="submit" class="secondary">Delete Session</button>
+    </form>
+</div>
+
+<style>
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        background-color: var(--pico-primary-background);
+        color: var(--pico-primary-inverse);
+        text-transform: uppercase;
+    }
+
+    .message-card {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid var(--pico-muted-border-color);
+        border-radius: var(--pico-border-radius);
+        background-color: var(--pico-card-background-color);
+    }
+
+    .message-card[data-role="user"] {
+        border-left: 4px solid var(--pico-primary);
+    }
+
+    .message-card[data-role="assistant"] {
+        border-left: 4px solid var(--pico-secondary);
+    }
+
+    .message-card[data-role="tool"] {
+        border-left: 4px solid var(--pico-contrast);
+    }
+
+    .message-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--pico-muted-border-color);
+    }
+
+    .message-content {
+        margin-top: 0.5rem;
+    }
+
+    .message-tool-calls,
+    .message-tool-response {
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        background-color: var(--pico-background-color);
+        border-radius: var(--pico-border-radius);
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}

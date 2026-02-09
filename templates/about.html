@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}About - {{ app_name }}{% endblock %}
+
+{% block content %}
+<article>
+    <h1>About Software Builder</h1>
+    
+    <p>
+        Software Builder is a local LLM coding agent with a built-in evaluation system,
+        designed for software engineers who want full control and transparency.
+    </p>
+    
+    <h2>Technology Stack</h2>
+    
+    <h3>Backend</h3>
+    <ul>
+        <li><strong>Flask</strong> - Lightweight web framework</li>
+        <li><strong>SQLAlchemy</strong> - ORM for database management</li>
+        <li><strong>Alembic</strong> - Database migrations</li>
+        <li><strong>SQLite</strong> - Local database storage</li>
+        <li><strong>Pydantic</strong> - Type-safe configuration</li>
+        <li><strong>structlog</strong> - Structured logging</li>
+    </ul>
+    
+    <h3>Frontend</h3>
+    <ul>
+        <li><strong>Datastar</strong> - Hypermedia framework for reactive UI</li>
+        <li><strong>Pico.css</strong> - Minimal CSS framework</li>
+        <li><strong>Server-Sent Events</strong> - Real-time updates</li>
+    </ul>
+    
+    <h3>Development Tools</h3>
+    <ul>
+        <li><strong>uv</strong> - Fast Python package manager</li>
+        <li><strong>Ruff</strong> - Lightning-fast linter and formatter</li>
+        <li><strong>pytest</strong> - Testing framework</li>
+        <li><strong>just</strong> - Command runner</li>
+    </ul>
+    
+    <h2>Key Features</h2>
+    
+    <h3>🤖 Coding Agent</h3>
+    <p>
+        Specialized prompts and tools for software engineering tasks. The agent can
+        read files, write code, execute tools, and maintain context across conversations.
+    </p>
+    
+    <h3>📊 Built-in Evaluation</h3>
+    <p>
+        Comprehensive evaluation framework based on industry best practices:
+    </p>
+    <ul>
+        <li><strong>Trace Collection</strong> - Automatic capture of all interactions</li>
+        <li><strong>Manual Annotation</strong> - Binary pass/fail judgments</li>
+        <li><strong>Dataset Management</strong> - Build test cases from failures</li>
+        <li><strong>Prompt Versioning</strong> - Track performance across versions</li>
+        <li><strong>Automated Tests</strong> - pytest integration for CI/CD</li>
+    </ul>
+    
+    <h3>🔒 Local & Private</h3>
+    <p>
+        Everything runs on your machine. Your code, conversations, and data
+        never leave your system unless you explicitly use a cloud LLM API.
+    </p>
+    
+    <h2>Version Information</h2>
+    <p>
+        <span class="badge">Version {{ app_version }}</span>
+    </p>
+    
+    <h2>Documentation</h2>
+    <ul>
+        <li><a href="https://github.com/yourusername/software-builder" target="_blank">GitHub Repository</a></li>
+        <li><a href="/health" target="_blank">Health Check API</a></li>
+    </ul>
+</article>
+{% endblock %}

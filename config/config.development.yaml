@@ -1,0 +1,26 @@
+# Software Builder - Development Configuration
+# Overrides for local development environment
+
+app:
+  environment: "development"
+  debug: true
+
+web:
+  host: "127.0.0.1"
+  port: 5000
+
+database:
+  url: "sqlite:///data/software_builder.db"
+  echo: true  # Log SQL queries in development
+
+logging:
+  level: "DEBUG"
+  format: "console"
+  structured: true
+
+agent:
+  max_iterations: 5  # Shorter for development testing
+  timeout: 60
+
+eval:
+  trace_collection: true

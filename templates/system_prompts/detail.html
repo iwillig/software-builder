@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}{{ prompt.version }} - System Prompts - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1>{{ prompt.version }}</h1>
+        <p style="margin: 0; color: var(--pico-muted-color);">
+            {{ prompt.name }}
+            {% if prompt.is_active %}
+                <span class="badge badge-success">Active</span>
+            {% else %}
+                <span class="badge badge-secondary">Inactive</span>
+            {% endif %}
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('system_prompts.list_prompts') }}" role="button" class="secondary">← Back to Prompts</a>
+    </div>
+</div>
+
+<!-- Prompt Information -->
+<article>
+    <h3>Prompt Information</h3>
+    <div class="grid">
+        <div>
+            <strong>Version:</strong>
+            <p>{{ prompt.version }}</p>
+        </div>
+        <div>
+            <strong>Name:</strong>
+            <p>{{ prompt.name }}</p>
+        </div>
+    </div>
+    <div class="grid">
+        <div>
+            <strong>Status:</strong>
+            <p>
+                {% if prompt.is_active %}
+                    <span class="badge badge-success">Active</span>
+                    <small style="display: block; margin-top: 0.5rem; color: var(--pico-muted-color);">
+                        This prompt will be used for new sessions
+                    </small>
+                {% else %}
+                    <span class="badge badge-secondary">Inactive</span>
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <strong>Created:</strong>
+            <p>{{ prompt.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        </div>
+    </div>
+    <div>
+        <strong>Sessions Using This Prompt:</strong>
+        <p>
+            {{ session_count }} session(s)
+            {% if session_count > 0 %}
+                <a href="{{ url_for('sessions.list_sessions') }}">View sessions</a>
+            {% endif %}
+        </p>
+    </div>
+</article>
+
+<!-- Prompt Content -->
+<article>
+    <h3>Prompt Content</h3>
+    <pre style="white-space: pre-wrap; background-color: var(--pico-background-color); padding: 1rem; border-radius: var(--pico-border-radius); border: 1px solid var(--pico-muted-border-color);">{{ prompt.content }}</pre>
+</article>
+
+<!-- Actions -->
+<div style="display: flex; gap: 1rem; margin-top: 2rem;">
+    {% if not prompt.is_active %}
+    <form method="POST" 
+          action="{{ url_for('system_prompts.activate_prompt', prompt_id=prompt.id) }}"
+          style="display: inline;">
+        <button type="submit">Set as Active</button>
+    </form>
+    {% else %}
+    <button disabled>Already Active</button>
+    {% endif %}
+    
+    {% if session_count == 0 %}
+    <form method="POST" 
+          action="{{ url_for('system_prompts.delete_prompt', prompt_id=prompt.id) }}"
+          style="display: inline;"
+          onsubmit="return confirm('Delete this system prompt? This cannot be undone.');">
+        <button type="submit" class="secondary">Delete Prompt</button>
+    </form>
+    {% else %}
+    <button disabled title="Cannot delete: used by {{ session_count }} session(s)">
+        Delete Prompt
+    </button>
+    <small style="color: var(--pico-muted-color); align-self: center;">
+        (Cannot delete: used by {{ session_count }} session(s))
+    </small>
+    {% endif %}
+</div>
+
+<style>
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+        text-transform: uppercase;
+    }
+    
+    .badge-success {
+        background-color: var(--pico-ins-color);
+        color: var(--pico-contrast);
+    }
+    
+    .badge-secondary {
+        background-color: var(--pico-muted-color);
+        color: var(--pico-contrast);
+    }
+</style>
+{% endblock %}

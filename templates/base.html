@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    
+    <!-- Pico CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    
+    <!-- Datastar -->
+    <script type="module" defer src="https://cdn.jsdelivr.net/npm/@sudodevnull/datastar"></script>
+    
+    <!-- Custom styles -->
+    <style>
+        :root {
+            --pico-font-family: system-ui, -apple-system, "Segoe UI", "Roboto", "Ubuntu", "Cantarell", "Noto Sans", sans-serif;
+        }
+        
+        nav {
+            background-color: var(--pico-background-color);
+            border-bottom: 1px solid var(--pico-muted-border-color);
+        }
+        
+        nav ul {
+            padding: 0;
+        }
+        
+        main {
+            min-height: calc(100vh - 200px);
+        }
+        
+        footer {
+            margin-top: 2rem;
+            padding: 2rem 0;
+            border-top: 1px solid var(--pico-muted-border-color);
+            text-align: center;
+            color: var(--pico-muted-color);
+        }
+        
+        .hero {
+            padding: 3rem 0;
+            text-align: center;
+        }
+        
+        .hero h1 {
+            margin-bottom: 1rem;
+        }
+        
+        .hero p {
+            color: var(--pico-muted-color);
+            font-size: 1.2rem;
+        }
+        
+        .card {
+            padding: 2rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--pico-muted-border-color);
+            border-radius: var(--pico-border-radius);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border-radius: 0.25rem;
+            background-color: var(--pico-primary-background);
+            color: var(--pico-primary-inverse);
+        }
+        
+        {% block styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="container-fluid">
+        <ul>
+            <li><strong><a href="/" class="contrast">{{ app_name }}</a></strong></li>
+        </ul>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/sessions">Sessions</a></li>
+            <li><a href="/system-prompts">Prompts</a></li>
+            <li><a href="/traces">Traces</a></li>
+            <li><a href="/evals">Evaluations</a></li>
+            <li><a href="/about">About</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main content -->
+    <main class="container">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <article style="margin-bottom: 1rem; {% if category == 'error' %}background-color: var(--pico-del-color);{% elif category == 'success' %}background-color: var(--pico-ins-color);{% endif %}">
+                        {{ message }}
+                    </article>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="container">
+        <small>
+            {{ app_name }} v{{ app_version }} &mdash; 
+            Built with Flask + Datastar + Pico.css
+        </small>
+    </footer>
+
+    <!-- Custom scripts -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>
