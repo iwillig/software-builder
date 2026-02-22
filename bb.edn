@@ -1,0 +1,28 @@
+{:paths ["src" "test"]
+ :tasks {test {:doc "Runs test suite"
+               :task (do
+                       (apply clojure (into ["-M:jvm-base:dev:test"] *command-line-args*)))}
+
+         fmt {:doc "Fix Clojure formatting"
+              :task (do
+                      (clojure "-M:jvm-base:dev:format -m  cljfmt.main fix src dev test"))}
+
+         fmt-check {:doc "Check format clojure code"
+                    :task (do
+                            (clojure "-M:jvm-base:dev:format -m  cljfmt.main check src dev test"))}
+
+         lint {:doc "Lints the code base for clj-kondo"
+               :task (do
+                       (clojure "-M:lint -m clj-kondo.main --lint dev src test"))}
+
+         main {:doc "Main method"
+               :task (do
+                       (apply clojure (into ["-M:jvm-base:main"] *command-line-args*)))}
+
+         nrepl {:doc "run a nrepl"
+                :task (do (clojure "-M:jvm-base:dev:nrepl"))}
+
+         ci {:doc "Runs linting and tests for the ci"
+             :task (do (run 'fmt-check)
+                       (run 'lint)
+                       (run 'test))}}}
