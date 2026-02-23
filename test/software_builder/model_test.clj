@@ -64,7 +64,7 @@
   (testing "stored message has correct attributes"
     (let [session-id (model/create-session th/*test-conn* "/tmp/project")
           content "Test message content"
-          msg-id (model/store-message th/*test-conn* session-id :assistant content)
+          _msg-id (model/store-message th/*test-conn* session-id :assistant content)
           db (d/db th/*test-conn*)
           messages (model/get-session-messages db session-id)]
       (is (= 1 (count messages)) "Should have one message")
@@ -94,13 +94,13 @@
     (let [session-id (model/create-session th/*test-conn* "/tmp/project")
           tool-call {:name "read-file" :args {:path "/tmp/test.clj"}}
           tool-result {:success true :content "file contents"}
-          msg-id (model/store-message th/*test-conn*
-                                      session-id
-                                      :tool
-                                      "Tool execution"
-                                      :model "claude-3-5-sonnet"
-                                      :tool-call tool-call
-                                      :tool-result tool-result)
+          _msg-id (model/store-message th/*test-conn*
+                                       session-id
+                                       :tool
+                                       "Tool execution"
+                                       :model "claude-3-5-sonnet"
+                                       :tool-call tool-call
+                                       :tool-result tool-result)
           messages (model/get-session-messages (d/db th/*test-conn*) session-id)
           msg (first messages)]
       (is (= "claude-3-5-sonnet" (:message/model msg)))
@@ -151,7 +151,7 @@
 
 (deftest calculate-strength-test
   (testing "strength decays over time"
-    (let [session-id (model/create-session th/*test-conn* "/tmp/project")
+    (let [_session-id (model/create-session th/*test-conn* "/tmp/project")
           mem-id (model/create-memory th/*test-conn* "Decaying memory" :type :fact)
           db (d/db th/*test-conn*)
           memory (d/entity db [:memory/id mem-id])

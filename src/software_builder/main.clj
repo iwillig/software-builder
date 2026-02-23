@@ -9,9 +9,26 @@
    [datalevin.core :as d]
    [software-builder.schema :as schema]
    [software-builder.model :as model]
-   [software-builder.tui :as tui])
+   [software-builder.tui :as tui]
+   [bling.banner :refer [banner]]
+   [bling.fonts.ansi-shadow :refer [ansi-shadow]])
   (:import
    (java.util UUID)))
+
+;; ═══════════════════════════════════════════════════════════════
+;; BANNER
+;; ═══════════════════════════════════════════════════════════════
+
+(defn print-banner
+  "Print the Software Builder ASCII banner."
+  []
+  (println
+   (banner
+    {:font ansi-shadow
+     :text "Software Builder"
+     :gradient-direction :to-right
+     :gradient-colors [:cool :warm]
+     :margin-bottom 1})))
 
 ;; ═══════════════════════════════════════════════════════════════
 ;; DATABASE CONNECTION MANAGEMENT

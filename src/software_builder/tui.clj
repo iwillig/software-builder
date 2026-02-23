@@ -1,146 +1,28 @@
 (ns software-builder.tui
-  "TUI for the software-builder with LLM integration.
-   Provides a chat interface where user messages are sent to an LLM
-   and responses are displayed and stored."
+  "TUI for the software-builder using charm.clj's Model-Update-View architecture.
+   Provides a chat interface with full-width input using charm's text-input component."
   (:require
    [clojure.string :as str]
    [datalevin.core :as d]
    [software-builder.model :as model]
    [software-builder.llm :as llm]
-   [charm.core :as charm])
+   [charm.core :as charm]
+   [bling.banner :refer [banner]]
+   [bling.fonts.ansi-shadow :refer [ansi-shadow]])
   (:import
-   (org.jline.terminal TerminalBuilder Terminal)
-   (org.jline.reader LineReaderBuilder)
-   (org.jline.utils AttributedStyle AttributedStringBuilder)
    (java.util Date)))
 
 ;; ═══════════════════════════════════════════════════════════════
-;; STATE
+;; COLORS & STYLES
 ;; ═══════════════════════════════════════════════════════════════
 
-;; ═══════════════════════════════════════════════════════════════
-;; TERMINAL SETUP
-;; ═══════════════════════════════════════════════════════════════
+(def ^:private user-color (charm/ansi 67))
+(def ^:private assist-color (charm/ansi 245))
+(def ^:private timestamp-color (charm/ansi 240))
+(def ^:private system-color (charm/ansi 178))
+(def ^:private tool-color (charm/ansi 139))
+(def ^:private border-color (charm/ansi 240))
 
-(defn create-terminal
-  "Create a system terminal with JLine."
-  []
-  (-> (TerminalBuilder/builder)
-      (.system true)
-      (.build)))
-
-(defn create-reader
-  "Create a line reader for the terminal."
-  [^Terminal terminal]
-  (-> (LineReaderBuilder/builder)
-      (.terminal terminal)
-      (.build)))
-
-;; ═══════════════════════════════════════════════════════════════
-;; STYLED OUTPUT
-;; ═══════════════════════════════════════════════════════════════
-
-(defn styled-text
-  "Create styled text using AttributedStringBuilder."
-  [text style-map]
-  (let [builder (AttributedStringBuilder.)
-        style   (cond-> AttributedStyle/DEFAULT
-                  (:bold style-map)      .bold
-                  (:italic style-map)    .italic
-                  (:underline style-map) .underline
-                  (:fg style-map)        (.foreground ^int (:fg style-map))
-                  (:bg style-map)        (.background ^int (:bg style-map)))]
-    (.append builder text style)
-    (.toAttributedString builder)))
-
-(def color
-  "ANSI color constants."
-  {:black   AttributedStyle/BLACK
-   :red     AttributedStyle/RED
-   :green   AttributedStyle/GREEN
-   :yellow  AttributedStyle/YELLOW
-   :blue    AttributedStyle/BLUE
-   :magenta AttributedStyle/MAGENTA
-   :cyan    AttributedStyle/CYAN
-   :white   AttributedStyle/WHITE})
-
-(defn print-styled
-  "Print styled text to terminal."
-  [^Terminal terminal text style-map]
-  (let [styled (styled-text text style-map)
-        writer (.writer terminal)]
-    (.println writer styled)
-    (.flush writer)))
-
-(defn print-header
-  "Print the TUI header."
-  [^Terminal terminal session-title]
-  (let [width (.getColumns (.getSize terminal))
-        line (apply str (repeat width "─"))]
-    (print-styled terminal line {:fg (:cyan color) :bold true})
-    (print-styled terminal (str "  Session: " session-title) {:fg (:cyan color) :bold true})
-    (print-styled terminal line {:fg (:cyan color) :bold true})))
-
-(defn print-help
-  "Print help text."
-  [^Terminal terminal]
-  (let [writer (.writer terminal)]
-    (.println writer "")
-    (print-styled terminal "  Commands:" {:fg (:yellow color) :bold true})
-    (print-styled terminal "    /quit or /q  - Exit the TUI" {:fg (:white color)})
-    (print-styled terminal "    /help or /h  - Show this help" {:fg (:white color)})
-    (print-styled terminal "    /history     - Show message history" {:fg (:white color)})
-    (print-styled terminal "    /clear       - Clear the screen" {:fg (:white color)})
-    (.println writer "")))
-
-;; ═══════════════════════════════════════════════════════════════
-;; SPINNER
-;; ═══════════════════════════════════════════════════════════════
-
-(defn create-async-spinner
-  "Create an async spinner that prints to terminal until stopped.
-   Returns a map with :stop fn to stop the spinner."
-  ([terminal]
-   (create-async-spinner terminal "Processing..."))
-  ([terminal message]
-   (let [spinner-config (charm/spinner :dot :id :llm-spinner)
-         [spinner-state _cmd] (charm/spinner-init spinner-config)
-         running (atom true)
-         frames-atom (atom spinner-state)
-         width (.getColumns (.getSize terminal))
-         writer (.writer terminal)]
-     (future
-       (while @running
-         (let [current @frames-atom
-               frame (charm/spinner-view current)
-               text (str "  " frame " " message)]
-           (.print writer "\r")
-           (.print writer (apply str (repeat width " ")))
-           (.print writer "\r")
-           (.print writer text)
-           (.flush writer)
-           (Thread/sleep 80)
-           (when @running
-             (swap! frames-atom #(first (charm/spinner-update % {:type :spinner-tick})))))))
-     {:stop (fn []
-              (reset! running false)
-              (.print writer "\r")
-              (.print writer (apply str (repeat width " ")))
-              (.print writer "\r")
-              (.flush writer))})))
-
-;; ═══════════════════════════════════════════════════════════════
-;; MESSAGE DISPLAY
-;; ═══════════════════════════════════════════════════════════════
-
-;; Subtle color palette using charm.style (ANSI 256 colors)
-(def ^:private user-color      (charm/ansi 67))   ; soft blue
-(def ^:private assist-color    (charm/ansi 245))  ; soft gray
-(def ^:private timestamp-color (charm/ansi 240))  ; muted gray
-(def ^:private system-color    (charm/ansi 178))  ; soft yellow
-(def ^:private tool-color      (charm/ansi 139))  ; soft magenta
-
-;; Style definitions using charm.style
 (def ^:private user-header-style
   (charm/style :fg user-color :bold true))
 
@@ -151,22 +33,215 @@
   (charm/style :fg timestamp-color :bold false))
 
 (def ^:private content-style
-  (charm/style :fg (charm/ansi 253)))  ; near-white
+  (charm/style :fg (charm/ansi 253)))
 
-(defn format-timestamp
+(def ^:private border-style
+  (charm/style :fg border-color))
+
+(def ^:private status-style
+  (charm/style :fg (charm/ansi 242) :italic true))
+
+;; ═══════════════════════════════════════════════════════════════
+;; INITIALIZATION
+;; ═══════════════════════════════════════════════════════════════
+
+(defn- -format-timestamp
   "Format a Date for display (minimal HH:MM)."
   [^Date date]
   (let [fmt (java.text.SimpleDateFormat. "HH:mm")]
     (.format fmt date)))
 
-(defn- render-header
-  "Render a message header with charm.style."
-  [timestamp prefix style]
-  (str (charm/render timestamp-style (str "[" timestamp "] "))
-       (charm/render style prefix)))
+(defn- -create-banner
+  "Create the Software Builder banner with bling."
+  []
+  (banner
+   {:font ansi-shadow
+    :text "Software Builder"
+    :gradient-direction :to-right
+    :gradient-colors [:cool :warm]}))
 
-(defn- wrap-text
-  "Wrap text to fit within a specified width."
+(defn- -create-input-box
+  "Create full-width text input component."
+  [width]
+  (charm/text-input :prompt ""
+                    :placeholder "Type your message..."
+                    :width (- width 8)  ; Account for borders and padding
+                    :focused true
+                    :id :main-input))
+
+(defn- -session-status-text
+  "Build status string for token usage."
+  [db session-id]
+  (let [messages (model/get-session-messages db session-id)
+        total-chars (reduce + 0 (map #(count (:message/content %)) messages))
+        tokens (quot total-chars 4)
+        msg-count (count messages)]
+    (format "~%,d tokens · %d message%s"
+            tokens msg-count (if (= 1 msg-count) "" "s"))))
+
+(defn init-state
+  "Initialize the TUI state for charm/run."
+  [conn session-id llm-client]
+  (let [db (d/db conn)
+        session (model/get-session db session-id)
+        ;; Default size, will be updated on first window-size event
+        width 80
+        height 24]
+    {:conn conn
+     :session-id session-id
+     :llm-client llm-client
+     :model-name (when llm-client (-> llm-client :config :model))
+     :session session
+     :messages (model/get-session-messages db session-id)
+     :width width
+     :height height
+     :banner (-create-banner)
+     :input (-create-input-box width)
+     :spinner nil
+     :thinking? false
+     :error nil}))
+
+;; ═══════════════════════════════════════════════════════════════
+;; UPDATE FUNCTION
+;; ═══════════════════════════════════════════════════════════════
+
+(defn- -handle-command
+  "Handle slash commands. Returns [new-state cmd]."
+  [state input]
+  (cond
+    (or (= input "/quit") (= input "/q"))
+    [state charm/quit-cmd]
+
+    (= input "/help")
+    [(assoc state :show-help true) nil]
+
+    (= input "/history")
+    (let [db (d/db (:conn state))
+          messages (model/get-session-messages db (:session-id state))]
+      [(assoc state :messages messages :show-history true) nil])
+
+    (= input "/clear")
+    [(assoc state :messages []) nil]
+
+    :else
+    [(assoc state :error (str "Unknown command: " input)) nil]))
+
+(defn- -send-to-llm
+  "Send message to LLM and return command for async handling."
+  [state input]
+  (let [{:keys [conn session-id llm-client]} state]
+    ;; Store user message
+    (model/store-message conn session-id :user input)
+    ;; Create async command for LLM call
+    (charm/cmd
+     (fn []
+       (let [system-prompt "You are a helpful coding assistant. Provide concise, accurate answers."
+             messages (concat
+                       [(llm/make-message :system system-prompt)]
+                       (map #(llm/make-message (:message/role %) (:message/content %))
+                            (:messages state))
+                       [(llm/make-message :user input)])
+             response @(llm/complete llm-client messages {:max-tokens 500 :temperature 0.7})]
+         {:type :llm-response
+          :response response})))))
+
+(defn- -update-input
+  "Update text input with message and handle submission."
+  [state msg]
+  (let [[input cmd] (charm/text-input-update (:input state) msg)]
+    (cond
+      ;; Enter key - submit input
+      (and (charm/key-match? msg "enter") (seq (charm/text-input-value input)))
+      (let [value (str/trim (charm/text-input-value input))
+            new-input (charm/text-input-reset input)]
+        (if (.startsWith value "/")
+          ;; Handle command
+          (-handle-command (assoc state :input new-input) value)
+          ;; Send to LLM
+          (let [llm-cmd (-send-to-llm state value)]
+            [(assoc state
+                    :input new-input
+                    :thinking? true
+                    :messages (conj (:messages state)
+                                    {:message/role :user
+                                     :message/content value
+                                     :message/timestamp (Date.)}))
+             (charm/batch llm-cmd
+                          (charm/cmd (fn [] {:type :spinner-start})))])))
+
+      ;; Regular input update
+      :else
+      [(assoc state :input input) cmd])))
+
+(defn- -handle-llm-response
+  "Handle LLM response message."
+  [state {:keys [response]}]
+  (let [content (:content response)]
+    (if content
+      (do
+        (model/store-message (:conn state) (:session-id state) :assistant content
+                             :model (:model response))
+        [(assoc state
+                :thinking? false
+                :spinner nil
+                :messages (conj (:messages state)
+                                {:message/role :assistant
+                                 :message/content content
+                                 :message/timestamp (Date.)}))
+         nil])
+      [(assoc state
+              :thinking? false
+              :spinner nil
+              :error (str "Error: " (:error response "Unknown error")))
+       nil])))
+
+(defn update-fn
+  "Update function for charm/run.
+   Receives [state msg] and returns [new-state cmd]."
+  [state msg]
+  (cond
+    ;; Window resize - use values from message if available, otherwise keep current
+    (charm/window-size? msg)
+    (let [width (or (:width msg) (:width state) 80)
+          height (or (:height msg) (:height state) 24)]
+      [(assoc state
+              :width width
+              :height height
+              :input (-create-input-box width))
+       nil])
+
+    ;; Quit commands
+    (or (charm/key-match? msg "q")
+        (charm/key-match? msg "ctrl+c"))
+    [state charm/quit-cmd]
+
+    ;; LLM response
+    (= :llm-response (:type msg))
+    (-handle-llm-response state msg)
+
+    ;; Spinner tick (for animation)
+    (= :spinner-tick (:type msg))
+    (if-let [spinner (:spinner state)]
+      (let [[new-spinner cmd] (charm/spinner-update spinner msg)]
+        [(assoc state :spinner new-spinner) cmd])
+      [state nil])
+
+    ;; Start spinner
+    (= :spinner-start (:type msg))
+    (let [spinner-cfg (charm/spinner :dot :id :llm-thinking)
+          [spinner cmd] (charm/spinner-init spinner-cfg)]
+      [(assoc state :spinner spinner) cmd])
+
+    ;; Text input handling (default)
+    :else
+    (-update-input state msg)))
+
+;; ═══════════════════════════════════════════════════════════════
+;; VIEW FUNCTION
+;; ═══════════════════════════════════════════════════════════════
+
+(defn- -wrap-text
+  "Wrap text to fit within width."
   [text max-width]
   (if (<= (count text) max-width)
     [text]
@@ -174,273 +249,146 @@
            line ""
            lines []]
       (if (empty? words)
-        (if (seq line)
-          (conj lines line)
-          lines)
+        (if (seq line) (conj lines line) lines)
         (let [word (first words)
-              test-line (if (seq line)
-                          (str line " " word)
-                          word)]
+              test-line (if (seq line) (str line " " word) word)]
           (if (<= (count test-line) max-width)
             (recur (rest words) test-line lines)
             (recur (rest words) word (conj lines line))))))))
 
-(defn- indent-lines
-  "Indent lines with a consistent prefix."
-  [lines indent]
-  (map #(str indent %) lines))
-
-(defn print-message
-  "Print a single message to the terminal with subtle styling."
-  [^Terminal terminal msg]
-  (let [role      (:message/role msg)
-        content   (:message/content msg)
+(defn- -render-message
+  "Render a single message."
+  [msg width]
+  (let [role (:message/role msg)
+        content (:message/content msg)
         timestamp (:message/timestamp msg)
-        time-str  (when timestamp (format-timestamp timestamp))
-        width     (.getColumns (.getSize terminal))
-        content-width (- width 4)  ; Account for indent
-        writer    (.writer terminal)]
+        time-str (when timestamp (-format-timestamp timestamp))
+        content-width (- width 4)]
     (case role
       :user
-      (do
-        (.println writer (render-header time-str "You" user-header-style))
-        (doseq [line (indent-lines (wrap-text content content-width) "  ")]
-          (.println writer (charm/render content-style line)))
-        (.println writer ""))
+      (str (charm/render timestamp-style (str "[" time-str "] "))
+           (charm/render user-header-style "You:\n")
+           (str/join "\n" (map #(str "  " (charm/render content-style %))
+                               (-wrap-text content content-width)))
+           "\n")
 
       :assistant
-      (do
-        (.println writer (render-header time-str "Assistant" assist-header-style))
-        (doseq [line (indent-lines (wrap-text content content-width) "  ")]
-          (.println writer (charm/render content-style line)))
-        (.println writer ""))
+      (str (charm/render timestamp-style (str "[" time-str "] "))
+           (charm/render assist-header-style "Assistant:\n")
+           (str/join "\n" (map #(str "  " (charm/render content-style %))
+                               (-wrap-text content content-width)))
+           "\n")
 
-      ;; system / tool: minimal styling
+      ;; system/tool
       (let [role-style (case role
                          :system (charm/style :fg system-color :bold true)
-                         :tool   (charm/style :fg tool-color :bold true)
+                         :tool (charm/style :fg tool-color :bold true)
                          (charm/style :fg (charm/ansi 250)))
-            role-name  (case role
-                         :system "System"
-                         :tool   "Tool"
-                         (str/capitalize (name role)))]
-        (.println writer (str (charm/render timestamp-style (str "[" time-str "] "))
-                              (charm/render role-style (str role-name ": "))
-                              content))
-        (.println writer "")))
-    (.flush writer)))
+            role-name (case role
+                        :system "System"
+                        :tool "Tool"
+                        (str/capitalize (name role)))]
+        (str (charm/render timestamp-style (str "[" time-str "] "))
+             (charm/render role-style (str role-name ": "))
+             content
+             "\n")))))
 
-(defn print-llm-response
-  "Print an LLM response to the terminal with subtle styling."
-  [^Terminal terminal content]
-  (print-message terminal
-                 {:message/role :assistant
-                  :message/content content
-                  :message/timestamp (Date.)}))
+(defn- -render-input-box
+  "Render the full-width input box with borders."
+  [state]
+  (let [width (:width state)
+        top (str (charm/render border-style "╭")
+                 (charm/render border-style (apply str (repeat (- width 2) "─")))
+                 (charm/render border-style "╮"))
+        bottom (str (charm/render border-style "╰")
+                    (charm/render border-style (apply str (repeat (- width 2) "─")))
+                    (charm/render border-style "╯"))
+        status (-session-status-text (d/db (:conn state)) (:session-id state))
+        input-line (charm/text-input-view (:input state))
+        ;; Pad input line to full width
+        input-visible (str "│ " input-line)
+        input-padding (max 0 (- width (count input-visible) 1))
+        full-input (str input-visible
+                        (apply str (repeat input-padding " "))
+                        (charm/render border-style "│"))]
+    (str top "\n"
+         full-input "\n"
+         bottom "\n"
+         (charm/render status-style (str "  " status)) "\n")))
 
-(defn print-message-history
-  "Display message history for current session."
-  [^Terminal terminal conn session-id]
-  (let [db (d/db conn)
-        messages (model/get-session-messages db session-id)]
-    (if (seq messages)
-      (do
-        (print-styled terminal "
-─── Message History ───" {:fg (:cyan color) :bold true})
-        (doseq [msg messages]
-          (print-message terminal msg)))
-      (print-styled terminal "  (No messages yet)" {:fg (:white color)}))))
+(defn- -render-header
+  "Render the header with banner and metadata."
+  [state]
+  (let [width (:width state)
+        banner (:banner state)
+        model-name (or (:model-name state) "Not configured")
+        title (:session/title (:session state) "Untitled")
+        path (:session/project-path (:session state) "")
+        ;; Create bordered content
+        content (str banner "\n\n"
+                     "  Model:   " model-name "\n"
+                     "  Session: " title "\n"
+                     "  Path:    " path)
+        lines (str/split-lines content)
+        max-len (apply max (map count lines))
+        box-width (min width (+ max-len 4))
+        top (str (charm/render border-style "╭")
+                 (charm/render border-style (apply str (repeat (- box-width 2) "─")))
+                 (charm/render border-style "╮"))
+        bottom (str (charm/render border-style "╰")
+                    (charm/render border-style (apply str (repeat (- box-width 2) "─")))
+                    (charm/render border-style "╯"))]
+    (str top "\n"
+         (str/join "\n" (map #(str (charm/render border-style "│ ")
+                                   %
+                                   (apply str (repeat (- box-width (count %) 3) " "))
+                                   (charm/render border-style "│"))
+                             lines))
+         "\n" bottom "\n")))
 
-;; ═══════════════════════════════════════════════════════════════
-;; LLM INTEGRATION
-;; ═══════════════════════════════════════════════════════════════
+(defn- -render-thinking-indicator
+  "Render thinking indicator with spinner."
+  [state]
+  (if-let [spinner (:spinner state)]
+    (str "  " (charm/spinner-view spinner) " Thinking...\n")
+    ""))
 
-(defn create-llm-client
-  "Create an LLM client from environment configuration.
-   Uses HF_TOKEN env var for authentication."
-  []
-  (let [token (System/getenv "HF_TOKEN")]
-    (when token
-      (llm/hugging-face-client
-       {:api-token token
-        :model "meta-llama/Meta-Llama-3.1-8B-Instruct"
-        :provider "hyperbolic"}))))
-
-(defn build-conversation-messages
-  "Build message list from session history for LLM context.
-   Returns vector of Message records."
-  [conn session-id system-prompt]
-  (let [db (d/db conn)
-        history (model/get-session-messages db session-id)
-        messages (concat
-                  (when system-prompt
-                    [(llm/make-message :system system-prompt)])
-                  (map #(llm/make-message (:message/role %) (:message/content %))
-                       history))]
-    (vec messages)))
-
-(defn send-to-llm
-  "Send conversation to LLM and return response.
-   Returns deferred containing the response map."
-  [llm-client conn session-id user-input]
-  (let [system-prompt "You are a helpful coding assistant. Provide concise, accurate answers."
-        ;; Build history BEFORE storing the new message to avoid duplicates
-        messages     (build-conversation-messages conn session-id system-prompt)
-        all-messages (conj messages (llm/make-message :user user-input))]
-    ;; Store after history is captured
-    (model/store-message conn session-id :user user-input)
-    (llm/complete llm-client all-messages {:max-tokens 500 :temperature 0.7})))
-
-;; ═══════════════════════════════════════════════════════════════
-;; INPUT HANDLING
-;; ═══════════════════════════════════════════════════════════════
-
-(defn handle-command
-  "Handle special commands. Returns :quit to exit, :continue otherwise."
-  [^Terminal terminal conn session-id input]
-  (cond
-    (or (= input "/quit") (= input "/q"))
-    (do
-      (print-styled terminal "Goodbye!" {:fg (:green color)})
-      :quit)
-
-    (or (= input "/help") (= input "/h"))
-    (do
-      (print-help terminal)
-      :continue)
-
-    (= input "/history")
-    (do
-      (print-message-history terminal conn session-id)
-      :continue)
-
-    (= input "/clear")
-    (do
-      (let [writer (.writer terminal)]
-        (.print writer "\u001b[2J\u001b[H")
-        (.flush writer)
-        (print-header terminal (:session/title (model/get-session (d/db conn) session-id) "Session")))
-      :continue)
-
-    :else
-    (do
-      (print-styled terminal (str "Unknown command: " input) {:fg (:red color)})
-      (print-styled terminal "Type /help for available commands" {:fg (:white color)})
-      :continue)))
-
-(defn handle-user-input
-  "Handle user input, send to LLM, display and store response.
-   Returns :continue or :quit."
-  [^Terminal terminal llm-client conn session-id input]
-  (if (.startsWith input "/")
-    ;; Handle command - propagate :quit to the loop
-    (handle-command terminal conn session-id input)
-    ;; Send to LLM
-    (do
-      ;; Echo user's message as a chat bubble
-      (print-message terminal {:message/role      :user
-                               :message/content   input
-                               :message/timestamp (Date.)})
-      ;; Start async spinner while waiting for LLM
-      (let [spinner (create-async-spinner terminal "Thinking...")
-            response @(send-to-llm llm-client conn session-id input)
-            content (:content response)]
-        ;; Stop spinner when response arrives
-        ((:stop spinner))
-        ;; Display and store response
-        (if content
-          (do
-            (print-llm-response terminal content)
-            (model/store-message conn session-id :assistant content
-                                 :model (:model response)))
-          (print-styled terminal
-                        (str "Error: " (:error response "Unknown error"))
-                        {:fg (:red color)})))
-      :continue)))
+(defn view-fn
+  "View function for charm/run. Returns the complete UI string."
+  [state]
+  (let [width (:width state)
+        header (-render-header state)
+        messages (str/join "\n" (map #(-render-message % width) (:messages state)))
+        thinking (-render-thinking-indicator state)
+        input-box (-render-input-box state)
+        help-text "\nCommands: /quit, /help, /history, /clear"]
+    (str header
+         messages
+         thinking
+         "\n"
+         input-box
+         (charm/render status-style help-text))))
 
 ;; ═══════════════════════════════════════════════════════════════
-;; INPUT BOX
-;; ═══════════════════════════════════════════════════════════════
-
-(defn- -session-status-line
-  "Build a status string summarising the current session's token usage.
-   Estimates tokens as character-count / 4 (standard rough approximation)."
-  [db session-id width]
-  (let [messages   (model/get-session-messages db session-id)
-        total-chars (reduce + 0 (map #(count (:message/content %)) messages))
-        tokens     (quot total-chars 4)
-        msg-count  (count messages)
-        text       (format "  ~%,d tokens  ·  %d message%s"
-                           tokens msg-count (if (= 1 msg-count) "" "s"))
-        ;; Truncate if wider than terminal
-        text       (if (> (count text) width) (subs text 0 width) text)]
-    text))
-
-(defn -read-input
-  "Read a line of input with a full-width bordered box and a token-count
-   status line below it. Pre-draws the complete layout so the bottom border
-   and status are never cut off by terminal scroll on Enter."
-  [^Terminal terminal reader conn session-id]
-  (let [width  (.getColumns (.getSize terminal))
-        top    (str "╭" (apply str (repeat (- width 2) "─")) "╮")
-        bottom (str "╰" (apply str (repeat (- width 2) "─")) "╯")
-        status (str "\u001b[2m"
-                    (-session-status-line (d/db conn) session-id width)
-                    "\u001b[0m")
-        writer (.writer terminal)]
-    ;; Pre-draw: blank separator · top border · blank input area · bottom border · status
-    (.println writer "")
-    (.println writer top)
-    (.println writer "")
-    (.println writer bottom)
-    (.println writer status)
-    (.flush writer)
-    ;; Move cursor up 3 lines into the blank input area between the borders.
-    (.print writer "\u001b[3A")
-    (.flush writer)
-    ;; readLine draws "│ > " on the input line. On Enter, cursor moves to
-    ;; the bottom border line — not the last terminal line — so no extra scroll.
-    (let [input (.readLine reader "│ > ")]
-      ;; Cursor is now on line N+3 (bottom border placeholder).
-      ;; Move up 3 to the blank separator (line N) and clear to end of screen,
-      ;; erasing the entire input box so it never appears in the chat history.
-      (.print writer "\u001b[3A\r\u001b[0J")
-      (.flush writer)
-      input)))
-
-;; ═══════════════════════════════════════════════════════════════
-;; MAIN TUI LOOP
+;; PUBLIC API
 ;; ═══════════════════════════════════════════════════════════════
 
 (defn run-tui
-  "Run the TUI with an existing database connection and session.
-   Initializes LLM client and processes user input."
+  "Run the TUI using charm/run with full event-driven architecture."
   [conn session-id]
-  (let [terminal (create-terminal)
-        reader   (create-reader terminal)
-        session  (model/get-session (d/db conn) session-id)
-        title    (:session/title session "Untitled Session")
-        llm-client (create-llm-client)]
-    (try
-      (print-header terminal title)
-      (print-help terminal)
-      (print-message-history terminal conn session-id)
-
-      (when-not llm-client
-        (print-styled terminal
-                      "Warning: HF_TOKEN not set. LLM features unavailable."
-                      {:fg (:red color)}))
-
-      (loop []
-        (let [input (-read-input terminal reader conn session-id)]
-          (when-not (str/blank? input)
-            (when (not= :quit (handle-user-input terminal llm-client conn session-id input))
-              (recur)))))
-      (finally
-        (.close terminal)))))
+  (let [llm-client (when-let [token (System/getenv "HF_TOKEN")]
+                     (llm/hugging-face-client
+                      {:api-token token
+                       :model "meta-llama/Meta-Llama-3.1-8B-Instruct"
+                       :provider "hyperbolic"}))
+        initial-state (init-state conn session-id llm-client)]
+    (charm/run {:init (fn [] [initial-state nil])
+                :update update-fn
+                :view view-fn
+                :alt-screen false})))
 
 (defn run-tui-new-session
-  "Create a new session and run TUI with LLM integration."
+  "Create a new session and run TUI."
   [conn project-path]
   (let [session-id (model/create-session conn project-path)]
     (println (str "Created new session: " session-id))
