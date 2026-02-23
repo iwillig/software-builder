@@ -2,10 +2,7 @@
   "Phase 1 data schema for personal LLM coding agent.
    Defines Session, Message, and Memory entities with Datalevin."
   (:require
-   [datalevin.core :as d])
-  (:import
-   (java.util UUID)
-   (java.time Instant)))
+   [datalevin.core :as d]))
 
 ;; ═══════════════════════════════════════════════════════════════
 ;; PHASE 1: CORE SCHEMA
@@ -62,7 +59,7 @@
                           :db/doc ":text | :code | :tool-call | :tool-result"}
 
    :message/sequence {:db/valueType :db.type/long
-                       :db/doc "Order within session (0, 1, 2...)"}
+                      :db/doc "Order within session (0, 1, 2...)"}
 
    :message/timestamp {:db/valueType :db.type/instant}
 
@@ -88,20 +85,20 @@
                  :db/doc ":interaction | :episode | :theme | :archetype | :fact | :preference"}
 
    :memory/session {:db/valueType :db.type/ref
-                   :db/doc "Source session (nullable for cross-session)"}
+                    :db/doc "Source session (nullable for cross-session)"}
 
    :memory/content {:db/valueType :db.type/string
-                   :db/doc "Raw memory text"}
+                    :db/doc "Raw memory text"}
 
    :memory/summary {:db/valueType :db.type/string
-                   :db/doc "Condensed version for quick retrieval"}
+                    :db/doc "Condensed version for quick retrieval"}
 
    ;; Decay tracking (see memory-decay-and-consolidation.md)
    :memory/initial-strength {:db/valueType :db.type/float
                              :db/doc "Starting memory strength (0.0-1.0)"}
 
    :memory/current-strength {:db/valueType :db.type/float
-                              :db/doc "Calculated: mu * e^(-alpha*t)"}
+                             :db/doc "Calculated: mu * e^(-alpha*t)"}
 
    :memory/decay-rate {:db/valueType :db.type/float
                        :db/doc "alpha: 0.8=raw, 0.4=episode, 0.05=archetype"}
@@ -110,7 +107,7 @@
                         :db/doc "When last retrieved"}
 
    :memory/last-reviewed {:db/valueType :db.type/instant
-                           :db/doc "When human+AI reviewed"}
+                          :db/doc "When human+AI reviewed"}
 
    :memory/review-count {:db/valueType :db.type/long}
 

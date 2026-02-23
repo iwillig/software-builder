@@ -4,8 +4,7 @@
   (:require
    [datalevin.core :as d])
   (:import
-   (java.util UUID Date)
-   (java.time Instant)))
+   (java.util UUID Date)))
 
 ;; ═══════════════════════════════════════════════════════════════
 ;; SESSION OPERATIONS
@@ -45,14 +44,14 @@
 ;; MESSAGE OPERATIONS
 ;; ═══════════════════════════════════════════════════════════════
 
-(defn- next-sequence
+(defn- -next-sequence
   "Get the next sequence number for a session's messages."
   [db session-id]
   (or (->> (d/q '[:find (max ?seq)
                   :in $ ?session-id
                   :where [?m :message/session ?s]
-                         [?m :message/sequence ?seq]
-                         [?s :session/id ?session-id]]
+                  [?m :message/sequence ?seq]
+                  [?s :session/id ?session-id]]
                 db session-id)
            ffirst)
       -1))
@@ -63,7 +62,7 @@
   (let [msg-id (UUID/randomUUID)
         now (Date.)
         db (d/db conn)
-        last-seq (next-sequence db session-id)]
+        last-seq (-next-sequence db session-id)]
     (d/transact! conn
                  (filterv some?
                           [{:message/id msg-id
@@ -87,7 +86,7 @@
   (->> (d/q '[:find (pull ?m [*])
               :in $ ?session-id
               :where [?s :session/id ?session-id]
-                     [?m :message/session ?s]]
+              [?m :message/session ?s]]
             db session-id)
        (map first)
        (sort-by :message/sequence)))
@@ -171,7 +170,7 @@
   [db threshold]
   (->> (d/q '[:find (pull ?m [*])
               :where [?m :memory/current-strength ?s]
-                     [(< ?s ?threshold)]]
+              [(< ?s ?threshold)]]
             db threshold)
        (map first)
        (sort-by :memory/current-strength)))
